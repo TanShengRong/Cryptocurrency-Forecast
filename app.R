@@ -20,7 +20,7 @@ crypto$date <- as.Date(crypto$date)
 # Define UI for application 
 ui <- navbarPage(
   theme = shinytheme("readable"),
-  strong("Cryptocurrency"),
+  "DSBee's Cryptocurrency",
   tabPanel("Interactive Graph", 
    sidebarLayout(
     sidebarPanel(
@@ -60,13 +60,17 @@ ui <- navbarPage(
                uiOutput("selectCryptoWebOther"),
                selectInput('selectPriceOther', 'Select Start/End price', choices = c("Open", "Close")), 
                sliderInput("selectHorizonOther",label="How many months to predict?",min=1,max=12,value=2),
-               DT::dataTableOutput('table'),
+
                h5(strong("Explaination")),
-               p("The training window size is fixed at 7 months."),
-               p("The optimal training window size would otherwise be different for each crypt/method.")
+               p("We will be performing forecasting using 4 commonly used smoothing models : Simple Exponential, Holt's Linear, Holt's Winter Additive and Multiplicative on the same cryptocurrency."),
+               p("We will also be performing forecasing using the simple models: Drift, Mean, Naive, Seasonal Naive. They are then plotted and compared in a single graph."),
+               p("The output being printed summarizes the soothing parameters and training set error measures for each model."),
+               p("The data table can be searched according to the smoothing model or sorted accordingly for a particular error measurement.")
              ),
-             mainPanel(
-               h5(strong("Smoothing Models:")),
+             mainPanel(               
+               h5(strong("Comparison between the Smoothing Models:")),
+               div(DT::dataTableOutput("table"), style = "font-size: 80%; width: 70%"),
+               h5(strong("Plot Smoothing Models:")),
                p("Simple Exponential"),
                plotOutput("simpleExpo", width = "100%", height = "400px"),
                #textOutput("explainsimpleExpo", container = pre),
@@ -79,13 +83,28 @@ ui <- navbarPage(
                p("Holt-Winter’s Multiplicative"),
                plotOutput("holtWinterMulti", width = "100%", height = "400px"),
                #textOutput("explainholtWinterMulti", container = pre),
-               p("Simple Models"),
-               plotOutput("simpleModels", width = "100%", height = "400px"),
-               textOutput("explainsimpleModels", container = pre)
+               p("Simple Models (Not Reliable)"),
+               plotOutput("simpleModels", width = "100%", height = "400px")
+               #textOutput("explainsimpleModels", container = pre)
              )
            )
            ),
   tabPanel("Read Me",
+           h3(strong("Libraries Used")),
+           HTML("
+                <ul>
+                <li><strong>shiny -</strong> An open source R package that provides an elegant and powerful web framework for building web applications.</li>
+                <li><strong>tidyverse -</strong> The tidyverse is a coherent system of packages for data manipulation, exploration and visualization</li>
+                <li><strong>dygraphs -</strong> Dygraphs provides facilities for charting time-series data in R and automatically plots xts time series objects</li>
+                <li><strong>xts -</strong> xts commonly referred to as eXtensible Time Series (xts) provides time series class and enables uniform handling by extending zoo</li>
+                <li><strong>rvest -</strong> Rvest is a package that makes it easy to scrape (or harvest) data from html web pages</li>
+                <li><strong>lubridate -</strong> Lubridate simplifies the data that contains dates and times which can be tricky and made use of parsing functions that automatically handle a wide variety of formats and separators</li>
+                <li><strong>forecast -</strong> Forecast contains methods and tools for displaying and analyzing univariate time series forecasts</li>
+                <li><strong>shinythemes -</strong> Acts like a bootstrap in shiny</li>
+                <li><strong>DT -</strong> DT provides an R interface to the JavaScript library 'DataTables'</li>
+                </ul>
+                "),
+           br(),
            h3(strong("Reasonings")),
            # ul(
            #   li("hi")
@@ -117,19 +136,29 @@ ui <- navbarPage(
                   </ul>
                 <h5>Other Forecast</h5>
                   <ul>
-                    <li></li>
+                    <li>The training window size is fixed at 7 months.</li>
+                    <li>The optimal training window size would otherwise be different for each crypt/method.</li>
                   </ul>
                 "),
            br(),
-           h3(strong("Work in Progress...")),
-           p("Comparing across cryptos"),
            h3(strong("Plans for future features and updates")),
-           p("All information scrapped"),
-           p("Plotly"),
-           h3(strong("Assignment 4, Members:")),
-           p("Yani"),
-           p("Fiqah"),
-           p("Sr")
+           h5("Working on Dynamic Data"),
+           p("In our project, we made use of the csv being provided by Kaggle hence it is based on static data. Future work might include the use of dynamic data hence all information will be scraped according to real tim.
+             Although it may take a while to scrape the data, users will benefit from a collection of updated information."),
+           h5("Plotly"),
+           p("Another library that can be used to beautify the data visualization is by using a library called plotly. As plotly graphs are rendered locally through the htmlwidgets framework, this will provide a better readibility and improve the aesthetics of the widgets being displayed onto the interface."),
+           h5("Comparing across cryptocurrencies"),
+           p("Comparing across cryptocurrencies could be added to improve the app. This allows the users to see how different cryptos perform intuitively. In this project, comparing cryptocurrencies side by side may be hard to compare as each crypto will have different optimal window size."),
+           h5("Selection of every cryptocurrency"),
+           p("Currenctly, only the top 10 currencies from the coinmarketcap (as of 17 April 2019) can be chosed to be forecasted. 
+             As we are working with static data, it makes sense to expand the cryptocurrency selection only when dynamic data is enabled.
+             This is because the top 10 currencies do not change in the Kaggle csv that we are using in our shiny app."),
+           br(),
+           h3(strong("Assignment 4, DSBee Members:")),
+           p("Tan Sheng Rong"),
+           p("Nurul Syafiqah"),
+           p("Siti Heryani"),
+           br()
   )
 )
 
@@ -268,7 +297,7 @@ server <- function(input, output, session) {
 
       wikiDataTS <- getActual()
       
-      autoplot(tsDataFC) +
+      autoplot(tsDataFC, xlab = "Time", ylab = "Price") +
         autolayer(wikiDataTS, series = "Actual")
       # dataTS <- data.frame(Y=as.matrix(dataTS), date=time(dataTS))
       # wikiDataTS <- data.frame(Y=as.matrix(wikiDataTS), date=time(wikiDataTS))
@@ -524,40 +553,76 @@ server <- function(input, output, session) {
     #   hwmFit <- getholtWinterAdd()
     #   summary(hwmFit)
     # })
-    
-    output$explainsimpleModels <- renderPrint({
-      sesFit <- getsimpleExpo()
-      hlmFit <- getholtLinear()
-      hwaFit <- getholtWinterAdd()
-      hwmFit <- getholtWinterAdd()
-      print("Simple Exponential")
-      summary(sesFit)
-      print("Holt’s Linear")
-      summary(hlmFit)
-      print("Holt’s Winter's Addition")
-      summary(hwaFit)
-      print("Holt-Winter’s Multiplicative")
-      summary(hwmFit)
-    })
-    # output$table <- DT::renderDataTable({
-    #   #ME     RMSE      MAE       MPE     MAPE MASE       ACF1
-    #   colnames = c("sesFit", "hlmFit", "hwaFit", "hwmFit")
-    #   rownames = c("row1", "row2", "row3", "row4")
-    #   
+    # output$explainsimpleModels <- renderPrint({
+    #   sesFit <- getsimpleExpo()
+    #   hlmFit <- getholtLinear()
+    #   hwaFit <- getholtWinterAdd()
+    #   hwmFit <- getholtWinterAdd()
+    #   print("Simple Exponential")
+    #   summary(sesFit)
+    #   print("Holt’s Linear")
+    #   summary(hlmFit)
+    #   print("Holt’s Winter's Addition")
+    #   summary(hwaFit)
+    #   print("Holt-Winter’s Multiplicative")
+    #   summary(hwmFit)
     # })
+    
+    output$table <- DT::renderDataTable({
+      #ME     RMSE      MAE       MPE     MAPE MASE       ACF1
+      
+      # tmpColnames = c("sesFit", "hlmFit", "hwaFit", "hwmFit")
+      tmpColnames = c("Simple Exponential", "Holt’s Linear", "Holt’s Winter's Addition", "Holt-Winter’s Multiplicative")
+      tmpRownames = c("ME", "RMSE", "MAE", "MPE", "MAPE", "MASE", "ACF1")
+      # sesFit <- summary(getsimpleExpo())
+      # hlmFit <- summary(getholtLinear())
+      # hwaFit <- summary(getholtWinterAdd())
+      # hwmFit <- summary(getholtWinterAdd())
+      #create matrix by concaternating the rows. However, matrix is matrix[i] and not matrix[i][j]
+      tmp <- rbind(summary(getsimpleExpo()), 
+                   summary(getholtLinear()),
+                   summary(getholtWinterAdd()),
+                   summary(getholtWinterAdd()))
+      
+      #check for NaN, otherwise, it would be empty in datatable
+      for (i in 1:28) {
+        if (is.na(tmp[[i]])){
+          tmp[[i]] <- "NaN"
+          print("ok")
+        }
+      }
+      
+      tmpMatrix <- matrix(c(
+        tmp[[1]], tmp[[2]], tmp[[3]], tmp[[4]], tmp[[5]], tmp[[6]], tmp[[7]],
+        tmp[[8]], tmp[[9]], tmp[[10]], tmp[[11]], tmp[[12]], tmp[[13]], tmp[[14]],
+        tmp[[15]], tmp[[16]], tmp[[17]], tmp[[18]], tmp[[19]], tmp[[20]], tmp[[21]],
+        tmp[[22]], tmp[[23]], tmp[[24]], tmp[[25]], tmp[[26]], tmp[[27]], tmp[[28]]
+      ), nrow = 4, ncol = 7, byrow = FALSE, 
+      dimnames = list(tmpColnames,
+                      tmpRownames))
+      
+      myDT <- tmpMatrix %>% datatable %>% 
+        formatStyle(
+          columns = 1:6,
+          backgroundColor = styleInterval( 
+            cuts = c(-10, -.01, 0, 10), 
+            values = c("orange", "yellow", "white", "yellow", "orange") # c(a,b) c(colA, colB, colC) if(<a) colA if (a<x<b) colB if (>b) colC
+          )
+        )
+    }, server = FALSE)
     
     output$simpleModels <- renderPlot({
       cryptoData <- getDatasetOtherTrain()
       selectedHorizon <- getHorizonOther()
-      autoplot(airData, 
-               main = "", xlab = "Time", ylab = "Passengers") +
-        autolayer(meanf(airTrain, h = selectedHorizon * 30),
+      autoplot(cryptoData, 
+               main = "", xlab = "Time", ylab = "Price") +
+        autolayer(meanf(cryptoData, h = selectedHorizon * 30),
                   series="Mean", PI=FALSE) +
-        autolayer(naive(airTrain, h = selectedHorizon * 30),
+        autolayer(naive(cryptoData, h = selectedHorizon * 30),
                   series="Naïve", PI=FALSE) +
-        autolayer(rwf(airTrain, h = selectedHorizon * 30, drift = TRUE),
+        autolayer(rwf(cryptoData, h = selectedHorizon * 30, drift = TRUE),
                   series="Drift", PI=FALSE) +
-        autolayer(snaive(airTrain, h = selectedHorizon * 30),
+        autolayer(snaive(cryptoData, h = selectedHorizon * 30),
                   series="SNaive", PI=FALSE)
     })
     
@@ -587,6 +652,7 @@ server <- function(input, output, session) {
       # minDate <- ((min(cryptoData$date)))
       # maxDate <- ((max(cryptoData$date)))
       cryptoData <- cryptoData %>% select(-c(date)) #drops the date column for TS
+      #defauly, 7 months test window
       minDate <- ymd("2018-04-29") #set the date in ymd format
       maxDate <- ymd("2018-11-29")
       
